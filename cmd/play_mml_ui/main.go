@@ -985,6 +985,10 @@ func (g *game) rebuildPlayer() error {
 		return err
 	}
 	pl.SetMasterVolume(g.volume)
+	pl.SetTranspose(g.octave)
+	for i, gain := range g.eqGains {
+		pl.SetEQBand(i, float32(gain))
+	}
 	g.player = pl
 	g.events = pl.Watch()
 	g.playing = false
