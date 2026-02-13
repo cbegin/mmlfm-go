@@ -261,5 +261,5 @@ See [LICENSE](LICENSE) in the repository root.
 ## Acknowledgments
 
 - SiON (https://github.com/keim/SiON) — MML synthesis reference
-- mmlref.html — MML specification (converted to mmlref.md)
+- SiON mmlref.html — MML specification (converted to [mmlref.md](docs/mmlref.md))
 - Example MML files: see header comments in each file (e.g. LinearDrive, YURAYSAN)
