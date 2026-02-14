@@ -200,15 +200,18 @@ func (p *Player) Play(score *intmml.Score) error {
 	if len(usedMods) > 1 {
 		multi := intseq.NewMultiEngine(0, p.sampleRate)
 		defaultEng, defaultGain := baseEngine, baseGain
-		multi.AddEngine(0, defaultEng)
+		multi.AddEngine(0, defaultEng, defaultGain)
 		for mod := range usedMods {
 			if mod == 0 {
 				continue
 			}
 			e, g := engineForModule(mod, p.sampleRate, defaultEng, defaultGain)
-			e.SetMasterGain(g)
-			multi.AddEngine(mod, e)
+			multi.AddEngine(mod, e, g)
 		}
+		// Apply initial volume to all engines via the multi-engine scalar.
+		multi.SetMasterGain(p.volume)
+		p.engine = multi
+		p.baseGain = 1.0
 		for _, e := range multi.AllEngines() {
 			if fmEng, ok := e.(*intfm.Engine); ok && score.Definitions != nil {
 				fmEng.LoadOPMPatchFromDefs(score.Definitions)

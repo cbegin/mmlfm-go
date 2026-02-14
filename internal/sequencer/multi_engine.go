@@ -9,6 +9,7 @@ import (
 type MultiEngine struct {
 	mu          sync.Mutex
 	engines     map[int]VoiceEngine
+	baseGains   map[int]float64
 	defaultMod  int
 	currentMod  int
 	sampleRate  int
@@ -18,6 +19,7 @@ type MultiEngine struct {
 func NewMultiEngine(defaultMod int, sampleRate int) *MultiEngine {
 	return &MultiEngine{
 		engines:    make(map[int]VoiceEngine),
+		baseGains:  make(map[int]float64),
 		defaultMod: defaultMod,
 		currentMod: defaultMod,
 		sampleRate: sampleRate,
@@ -25,10 +27,12 @@ func NewMultiEngine(defaultMod int, sampleRate int) *MultiEngine {
 }
 
 // AddEngine registers an engine for the given module number.
-func (m *MultiEngine) AddEngine(module int, engine VoiceEngine) {
+// baseGain is the engine's default gain; SetMasterGain applies a scalar on top.
+func (m *MultiEngine) AddEngine(module int, engine VoiceEngine, baseGain float64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.engines[module] = engine
+	m.baseGains[module] = baseGain
 }
 
 // SetCurrentModule sets the module for subsequent control calls (SetFilterType, LFO, etc.).
@@ -109,9 +113,11 @@ func (m *MultiEngine) RenderFrame() (float32, float32) {
 	return l, r
 }
 
-func (m *MultiEngine) SetMasterGain(gain float64) {
-	for _, e := range m.AllEngines() {
-		e.SetMasterGain(gain)
+func (m *MultiEngine) SetMasterGain(scalar float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for mod, e := range m.engines {
+		e.SetMasterGain(m.baseGains[mod] * scalar)
 	}
 }
 
