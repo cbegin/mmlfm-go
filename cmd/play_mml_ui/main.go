@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"log"
 	"math"
 	"math/cmplx"
-	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 
@@ -218,12 +215,9 @@ func newGame(initialText string, initialPath string) (*game, error) {
 		return nil, err
 	}
 
-	cwd, err := os.Getwd()
+	cwd, err := getInitialCwd(initialPath)
 	if err != nil {
 		return nil, err
-	}
-	if initialPath != "" {
-		cwd = filepath.Dir(initialPath)
 	}
 
 	g := &game{
@@ -898,65 +892,6 @@ func (g *game) clickNavigator(my int, rect image.Rectangle) {
 	g.setStatus("Loaded " + filepath.Base(entry.path))
 }
 
-func (g *game) refreshNav() error {
-	items, err := os.ReadDir(g.cwd)
-	if err != nil {
-		return err
-	}
-	dirs := make([]navEntry, 0)
-	files := make([]navEntry, 0)
-
-	parent := filepath.Dir(g.cwd)
-	if parent != g.cwd {
-		dirs = append(dirs, navEntry{name: "..", path: parent, isDir: true})
-	}
-
-	for _, it := range items {
-		name := it.Name()
-		full := filepath.Join(g.cwd, name)
-		if it.IsDir() {
-			dirs = append(dirs, navEntry{name: name, path: full, isDir: true})
-			continue
-		}
-		if strings.EqualFold(filepath.Ext(name), ".mml") {
-			files = append(files, navEntry{name: name, path: full, isDir: false})
-		}
-	}
-
-	sort.Slice(dirs, func(i, j int) bool {
-		if dirs[i].name == ".." {
-			return true
-		}
-		if dirs[j].name == ".." {
-			return false
-		}
-		return strings.ToLower(dirs[i].name) < strings.ToLower(dirs[j].name)
-	})
-	sort.Slice(files, func(i, j int) bool {
-		return strings.ToLower(files[i].name) < strings.ToLower(files[j].name)
-	})
-	g.nav = append(dirs, files...)
-	return nil
-}
-
-func (g *game) loadFile(path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	_ = g.player.Stop()
-	g.playing = false
-	g.paused = false
-
-	g.editor = []rune(string(data))
-	g.editorScroll = 0
-	g.wrapDirty = true
-	g.loadedPath = path
-	g.cwd = filepath.Dir(path)
-
-	return g.refreshNav()
-}
-
 func (g *game) cycleEngine() {
 	wasPlaying := g.playing
 	g.engineIdx = (g.engineIdx + 1) % len(engineModes)
@@ -1360,37 +1295,4 @@ func clamp(v, minV, maxV float64) float64 {
 
 func pointInRect(x, y int, rect image.Rectangle) bool {
 	return x >= rect.Min.X && x < rect.Max.X && y >= rect.Min.Y && y < rect.Max.Y
-}
-
-func main() {
-	var (
-		initialText string
-		initialPath string
-	)
-	if len(os.Args) > 1 {
-		p, err := filepath.Abs(os.Args[1])
-		if err != nil {
-			log.Fatalf("resolve %q: %v", os.Args[1], err)
-		}
-		data, err := os.ReadFile(p)
-		if err != nil {
-			log.Fatalf("read %q: %v", p, err)
-		}
-		initialText = string(data)
-		initialPath = p
-	}
-
-	g, err := newGame(initialText, initialPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer g.Close()
-
-	ebiten.SetWindowSize(windowW, windowH)
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	ebiten.SetWindowSizeLimits(minWindowW, minWindowH, -1, -1)
-	ebiten.SetWindowTitle(fmt.Sprintf("mmlfm-go player"))
-	if err := ebiten.RunGame(g); err != nil {
-		log.Fatal(err)
-	}
 }

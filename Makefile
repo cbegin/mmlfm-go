@@ -1,8 +1,8 @@
 # mmlfm-go Makefile
 # Full-featured build, test, and development targets
 
-.PHONY: all build build-ui build-release test test-verbose test-coverage run run-ui run-example \
-	fmt vet lint mod-download mod-tidy clean install help
+.PHONY: all build build-cli build-ui build-web build-release test test-verbose test-coverage run run-ui run-example \
+	serve-web fmt vet lint mod-download mod-tidy clean install help
 
 # Project config
 BINARY_NAME    := play_mml
@@ -10,6 +10,7 @@ UI_BINARY_NAME := play_mml_ui
 MODULE         := github.com/cbegin/mmlfm-go
 MAIN_PKG       := ./cmd/play_mml
 UI_PKG         := ./cmd/play_mml_ui
+WASM_DIR       := bin/web
 GO             := go
 GOFLAGS        :=
 LDFLAGS        :=
@@ -22,7 +23,9 @@ all: build
 
 # --- Build ---
 
-build: ## Build play_mml CLI
+build: build-cli build-ui build-web ## Build all targets (CLI, GUI, web)
+
+build-cli: ## Build play_mml CLI
 	@mkdir -p bin
 	$(GO) build $(GOFLAGS) -o bin/$(BINARY_NAME) $(MAIN_PKG)
 
@@ -41,6 +44,27 @@ build-all: ## Cross-compile CLI for common platforms
 	GOOS=linux   GOARCH=arm64 $(GO) build -trimpath -ldflags "-s -w" -o bin/$(BINARY_NAME)-linux-arm64       $(MAIN_PKG)
 	GOOS=windows GOARCH=amd64 $(GO) build -trimpath -ldflags "-s -w" -o bin/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PKG)
 	GOOS=windows GOARCH=arm64 $(GO) build -trimpath -ldflags "-s -w" -o bin/$(BINARY_NAME)-windows-arm64.exe $(MAIN_PKG)
+
+build-web: ## Build play_mml_ui as WASM for web browsers
+	@mkdir -p $(WASM_DIR)/examples
+	GOOS=js GOARCH=wasm $(GO) build $(GOFLAGS) -o $(WASM_DIR)/play_mml_ui.wasm $(UI_PKG)
+	cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DIR)/
+	cp web/index.html $(WASM_DIR)/
+	cp examples/*.mml $(WASM_DIR)/examples/
+	@printf '[\n' > $(WASM_DIR)/examples/files.json; \
+	sep=""; \
+	for f in $(WASM_DIR)/examples/*.mml; do \
+		[ -n "$$sep" ] && printf ',\n' >> $(WASM_DIR)/examples/files.json; \
+		printf '  "%s"' "$$(basename $$f)" >> $(WASM_DIR)/examples/files.json; \
+		sep=y; \
+	done; \
+	printf '\n]\n' >> $(WASM_DIR)/examples/files.json
+	@echo "Web build ready in $(WASM_DIR)/"
+	@echo "Serve with: make serve-web"
+
+serve-web: build-web ## Serve WASM build on localhost:8080
+	@echo "Serving $(WASM_DIR) at http://localhost:8080"
+	cd $(WASM_DIR) && python3 -m http.server 8080
 
 # --- Test ---
 
@@ -137,8 +161,11 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build              Build play_mml CLI"
+	@echo "  make build              Build all (CLI, GUI, web)"
+	@echo "  make build-cli          Build play_mml CLI"
 	@echo "  make build-ui           Build play_mml_ui GUI"
+	@echo "  make build-web          Build play_mml_ui as WASM for web"
+	@echo "  make serve-web          Build and serve WASM on localhost:8080"
 	@echo "  make test               Run tests"
 	@echo "  make run                Run CLI with default MML"
 	@echo "  make run-ui             Run GUI"
