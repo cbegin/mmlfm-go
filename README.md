@@ -172,6 +172,30 @@ make run-ui FILE=examples/tr.mml
 
 The UI supports engine switching, play/pause/stop controls, and real-time audio visualization.
 
+### play_mml_ui (Web / WASM)
+
+The GUI player can also run in a web browser via WebAssembly. The web build bundles the example MML files as static assets and serves them alongside the player.
+
+```bash
+# Build the WASM player and assets into bin/web/
+make build-web
+
+# Build and serve locally on http://localhost:8080
+make serve-web
+```
+
+The web version uses the same UI as the desktop GUI. A file navigator lists the bundled example files, which are fetched over HTTP when selected. The output structure:
+
+```
+bin/web/
+  index.html
+  wasm_exec.js
+  play_mml_ui.wasm
+  examples/
+    files.json          # auto-generated manifest
+    dq.mml, gr.mml, …  # example MML files
+```
+
 ## MML Support
 
 Implemented commands include:
@@ -213,7 +237,7 @@ os.WriteFile("output.wav", wav, 0644)
 
 ```
 ├── cmd/play_mml/        # CLI player
-├── cmd/play_mml_ui/     # GUI player (Ebitengine)
+├── cmd/play_mml_ui/     # GUI player (Ebitengine, desktop + WASM)
 ├── internal/
 │   ├── mml/             # MML parser
 │   ├── sequencer/       # Tick/sample scheduler
@@ -224,6 +248,7 @@ os.WriteFile("output.wav", wav, 0644)
 │   ├── effects/         # Delay, reverb, chorus, distortion, EQ, compressor
 │   ├── lfo/             # LFO modulation (shared by all engines)
 │   └── audio/           # Ebitengine audio adapter
+├── web/                 # WASM bootstrap (index.html)
 ├── examples/            # Sample MML files
 ├── testdata/            # Golden hashes for snapshot tests
 └── docs/                # MML spec, conformance matrix, enhancement plan
@@ -232,6 +257,14 @@ os.WriteFile("output.wav", wav, 0644)
 ## Development
 
 ```bash
+# Build everything (CLI, GUI, web)
+make build
+
+# Build individual targets
+make build-cli          # CLI only
+make build-ui           # Desktop GUI only
+make build-web          # WASM web player only
+
 # Run tests
 make test
 
@@ -244,9 +277,8 @@ make fmt vet
 # Lint (requires golangci-lint)
 make lint
 
-# Build CLI and GUI apps
-make build
-make build-ui
+# Serve the web player locally
+make serve-web
 ```
 
 ## Requirements
